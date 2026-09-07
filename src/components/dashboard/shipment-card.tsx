@@ -52,6 +52,7 @@ export function ShipmentCard({
   onEdit,
   onDelete,
   onStatusChange,
+  onSaved,
   isPending,
   isActive,
   onOpenDetails,
@@ -60,6 +61,8 @@ export function ShipmentCard({
   onEdit: (shipment: Shipment) => void;
   onDelete: (shipment: Shipment) => void;
   onStatusChange: (shipment: Shipment, status: ShipmentStatus) => Promise<boolean>;
+  /** Called after a shipment is edited in-place from the details modal. */
+  onSaved: () => void;
   isPending: boolean;
   /** Whether this card is the most recently viewed/selected one (persistent highlight ring). */
   isActive: boolean;
@@ -166,7 +169,12 @@ export function ShipmentCard({
         <ChevronRight className="size-3.5" />
       </button>
 
-      <ShipmentDetailsDialog shipment={shipment} open={detailsOpen} onOpenChange={setDetailsOpen} />
+      <ShipmentDetailsDialog
+        shipment={shipment}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        onSaved={onSaved}
+      />
     </motion.div>
   );
 }

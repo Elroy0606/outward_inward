@@ -28,6 +28,7 @@ import { createShipment, updateShipment } from "@/lib/actions";
 import {
   shipmentFormSchema,
   formValuesToShipmentInsert,
+  shipmentToFormValues,
   type ShipmentFormValues,
 } from "@/lib/validations";
 import { SHIPMENT_STATUSES, SHIPMENT_TYPES, STATUS_CONFIG, TYPE_CONFIG } from "@/lib/constants";
@@ -56,31 +57,6 @@ const emptyDefaults = (type: ShipmentType): ShipmentFormValues => ({
   email: "",
   remarks: "",
 });
-
-function shipmentToFormValues(shipment: Shipment): ShipmentFormValues {
-  return {
-    type: shipment.type,
-    status: shipment.status,
-    company_name: shipment.company_name,
-    cost_center_oca: shipment.cost_center_oca ?? "",
-    shipment_date: shipment.shipment_date,
-    invoice_number: shipment.invoice_number ?? "",
-    particulars: shipment.particulars,
-    shipping_address: shipment.shipping_address ?? "",
-    taken_out_by: shipment.taken_out_by ?? "",
-    transporter_name: shipment.transporter_name ?? "",
-    tracking_number: shipment.tracking_number ?? "",
-    delivery_date: shipment.delivery_date ?? "",
-    confirmed_with: shipment.confirmed_with ?? "",
-    shipping_charges: shipment.shipping_charges?.toString() ?? "",
-    weight_kg: shipment.weight_kg?.toString() ?? "",
-    volume_cbm: shipment.volume_cbm?.toString() ?? "",
-    contact_person: shipment.contact_person ?? "",
-    contact_number: shipment.contact_number ?? "",
-    email: shipment.email ?? "",
-    remarks: shipment.remarks ?? "",
-  };
-}
 
 function Field({
   label,

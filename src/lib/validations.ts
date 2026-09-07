@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ShipmentInsert } from "@/lib/types";
+import type { Shipment, ShipmentInsert } from "@/lib/types";
 
 const shipmentTypeEnum = z.enum(["INWARD", "OUTWARD"]);
 const shipmentStatusEnum = z.enum(["PENDING", "IN_TRANSIT", "DELIVERED", "CANCELLED"]);
@@ -54,6 +54,32 @@ export const shipmentFormSchema = z.object({
 });
 
 export type ShipmentFormValues = z.infer<typeof shipmentFormSchema>;
+
+/** Converts a DB row into the string-typed shape the form (and its zod resolver) expects. */
+export function shipmentToFormValues(shipment: Shipment): ShipmentFormValues {
+  return {
+    type: shipment.type,
+    status: shipment.status,
+    company_name: shipment.company_name,
+    cost_center_oca: shipment.cost_center_oca ?? "",
+    shipment_date: shipment.shipment_date,
+    invoice_number: shipment.invoice_number ?? "",
+    particulars: shipment.particulars,
+    shipping_address: shipment.shipping_address ?? "",
+    taken_out_by: shipment.taken_out_by ?? "",
+    transporter_name: shipment.transporter_name ?? "",
+    tracking_number: shipment.tracking_number ?? "",
+    delivery_date: shipment.delivery_date ?? "",
+    confirmed_with: shipment.confirmed_with ?? "",
+    shipping_charges: shipment.shipping_charges?.toString() ?? "",
+    weight_kg: shipment.weight_kg?.toString() ?? "",
+    volume_cbm: shipment.volume_cbm?.toString() ?? "",
+    contact_person: shipment.contact_person ?? "",
+    contact_number: shipment.contact_number ?? "",
+    email: shipment.email ?? "",
+    remarks: shipment.remarks ?? "",
+  };
+}
 
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();

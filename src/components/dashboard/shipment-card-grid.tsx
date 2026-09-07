@@ -11,6 +11,7 @@ export function ShipmentCardGrid({
   onEdit,
   onDelete,
   onStatusChange,
+  onSaved,
   pendingIds,
   stackKey,
 }: {
@@ -18,6 +19,8 @@ export function ShipmentCardGrid({
   onEdit: (shipment: Shipment) => void;
   onDelete: (shipment: Shipment) => void;
   onStatusChange: (shipment: Shipment, status: ShipmentStatus) => Promise<boolean>;
+  /** Called after a shipment is edited in-place from a card's details modal. */
+  onSaved: () => void;
   pendingIds: Set<string>;
   /** Changing this replays the staggered entrance (e.g. on tab switch or status filter change). */
   stackKey: string;
@@ -58,6 +61,7 @@ export function ShipmentCardGrid({
             onEdit={onEdit}
             onDelete={onDelete}
             onStatusChange={onStatusChange}
+            onSaved={onSaved}
             isPending={pendingIds.has(shipment.id)}
             isActive={shipment.id === activeId}
             onOpenDetails={() => setActiveId(shipment.id)}

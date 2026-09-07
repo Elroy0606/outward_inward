@@ -29,8 +29,8 @@ No CLI/local Supabase project is wired up — migrations are plain SQL files app
 
 ```bash
 # Apply schema: paste each file in supabase/migrations/ into the Supabase SQL Editor IN ORDER
-# (0001_init.sql, then 0002_merge_cost_center_oca.sql, ...), or if you have the Supabase CLI
-# linked to a project:
+# (0001_init.sql, 0002_merge_cost_center_oca.sql, 0003_profiles_and_roles.sql,
+# 0004_shipments_rbac_policies.sql, ...), or if you have the Supabase CLI linked to a project:
 supabase db push
 
 # Optional demo rows:
@@ -44,10 +44,15 @@ incrementing from `0001_init.sql`.
 
 ```
 src/
+  middleware.ts               # auth wall: redirects logged-out visitors to /login (see
+                             # src/lib/supabase/middleware.ts for the actual session logic)
   app/
     layout.tsx              # root layout: fonts, metadata, <Toaster />
-    page.tsx                # dashboard page (Server Component) — fetches shipments,
-                             # renders <PageShell> + <DashboardShell>
+    page.tsx                # dashboard page (Server Component) — fetches the current user +
+                             # profile role and shipments, renders <PageShell> + <DashboardShell>
+    login/
+      page.tsx                 # server component: redirects to `/` if already signed in
+      login-form.tsx            # client form — calls the `signIn` server action
     globals.css              # Tailwind v4 theme tokens (Tangerine palette lives here)
   components/
     ui/                       # shadcn/ui primitives — regenerate/extend via `npx shadcn add`,
@@ -63,26 +68,37 @@ src/
       filters-bar.tsx           # search, status filter, export/import/add actions
       shipment-card-grid.tsx    # responsive card grid — stagger/exit + active-card state live here
       shipment-card.tsx          # single shipment card; "More details" opens the details dialog
-      shipment-details-dialog.tsx # centered modal with a card's full details (read-only)
+      shipment-details-dialog.tsx # centered modal with a card's full details — tangerine header
+                             # bar, sectioned key/value grids, and an in-place Edit toggle
+                             # (react-hook-form + zod) that PATCHes via `updateShipment`
       status-popover.tsx          # two-step-confirm status changer (see below)
       status-badge.tsx          # plain status badge (read-only contexts, e.g. import preview,
                              # shipment-details-dialog.tsx)
       shipment-form-dialog.tsx   # create/edit shipment, centered modal (react-hook-form + zod)
       upload-sheet.tsx           # drag-and-drop Excel/CSV importer + preview
       delete-shipment-dialog.tsx # delete confirmation (AlertDialog)
+      user-menu.tsx               # header dropdown: signed-in email/role + sign-out
   lib/
     types.ts                  # Shipment / ShipmentInsert / ShipmentUpdate / KPI types
     constants.ts                # EXCEL_COLUMN_MAP, STATUS_CONFIG, TYPE_CONFIG
-    validations.ts               # Zod schemas: form schema + server insert/update schema
+    validations.ts               # Zod schemas: form schema + server insert/update schema, plus
+                             # shipmentToFormValues()/formValuesToShipmentInsert() converters
+                             # shared by shipment-form-dialog.tsx and shipment-details-dialog.tsx
     excel-parser.ts               # header normalization + row mapping + coercion
     actions.ts                    # "use server" mutations (create/update/delete/bulk insert)
+    auth-actions.ts                # "use server" signIn/signOut (Supabase Auth)
     format.ts                      # date/currency/number display helpers
     supabase/
       client.ts                    # browser Supabase client
       server.ts                    # server Supabase client (async cookies, Next 16)
+      middleware.ts                 # session-refresh + login-wall logic used by src/middleware.ts
 supabase/
   migrations/0001_init.sql        # schema, indexes, updated_at trigger, RLS policies
   migrations/0002_merge_cost_center_oca.sql  # merges cost_center/oca_number -> cost_center_oca
+  migrations/0003_profiles_and_roles.sql      # profiles table, is_admin()/user_role(), auto-
+                                             # provisioning trigger on new auth.users rows
+  migrations/0004_shipments_rbac_policies.sql # replaces the 0001 "allow all" shipments RLS
+                                             # policies with role-gated ones (admin/staff)
   seed.sql                         # optional demo rows
 .env.local.example                 # copy to .env.local and fill in real values
 ```
@@ -207,11 +223,20 @@ wider than they'd otherwise be because the grid shares the page with the `KpiSid
   `StatusPopover` and an edit/delete kebab menu top-right.
 - Particulars (2-line clamp) and a compact meta row (shipment date, transporter/tracking).
 - A "More details" button that opens `ShipmentDetailsDialog` (`shipment-details-dialog.tsx`) — a
-  centered modal with the full `<dl>` (cost center/OCA, weight, volume, shipping charges, contact
-  info, address, remarks). This used to be an inline `AnimatePresence` accordion under the card,
-  but that made one card's expansion push the height of its entire grid row on desktop; a modal
-  sidesteps that regardless of grid position. The dialog is self-contained per card (its own
-  `useState` in `ShipmentCard`) — it doesn't need the shipment lifted anywhere.
+  centered modal with a tangerine gradient header bar and the shipment's fields grouped into
+  sectioned cards (Overview / Logistics / Contact / Address & Remarks). This used to be an
+  inline `AnimatePresence` accordion under the card, but that made one card's expansion push
+  the height of its entire grid row on desktop; a modal sidesteps that regardless of grid
+  position. The dialog is self-contained per card (its own `useState` in `ShipmentCard`) — it
+  doesn't need the shipment lifted anywhere.
+  - The dialog also has its own **Edit** toggle: clicking it swaps the same sectioned layout
+    into react-hook-form inputs (reusing `shipmentFormSchema`/`shipmentToFormValues`/
+    `formValuesToShipmentInsert` from `src/lib/validations.ts`) and shows Save/Cancel. Save
+    calls the `updateShipment` server action directly and calls the `onSaved` callback (threaded
+    down from `DashboardShell`'s `refresh`) on success; Cancel — and closing the dialog mid-edit
+    via the X button, overlay click, or Esc — discards the in-progress edit via `reset()`. This
+    is a second, lighter-weight edit path alongside the kebab menu's `ShipmentFormDialog`; both
+    ultimately call the same `updateShipment` action.
 
 **Active/recently-viewed highlight**: `ShipmentCardGrid` holds `activeId` (the single most
 recently opened card's id) and passes each card `isActive`/`onOpenDetails`. Opening a card's
@@ -294,9 +319,14 @@ this component's shape rather than reaching for an effect.
 - After a mutation succeeds, components call `router.refresh()` (via the `onSaved`/`onDeleted`/
   `onImported` callbacks threaded from `dashboard-shell.tsx`) rather than mutating local state —
   the server is the source of truth.
-- No auth is implemented. RLS policies in `0001_init.sql` currently allow full CRUD for
-  anon/authenticated roles, which is fine for an internal/private-network tool. **Add Supabase
-  Auth and tighten these policies before exposing this publicly.**
+- Auth is Supabase Auth, gated by `src/middleware.ts` (redirects logged-out requests to
+  `/login`) and by RLS — see `supabase/migrations/0003_profiles_and_roles.sql` (a `profiles`
+  table with an `admin`/`staff` `role`, auto-provisioned via an `auth.users` insert trigger)
+  and `0004_shipments_rbac_policies.sql` (SELECT for any provisioned user; INSERT/UPDATE for
+  `staff`/`admin`; DELETE for `admin` only). There's no public sign-up flow — invite users from
+  Supabase Studio → Authentication → Users, or disable public sign-ups under Authentication →
+  Providers → Email. Promote a user to `admin` with
+  `update public.profiles set role = 'admin' where email = '...'`.
 - Zod v4 is in use (not v3) — prefer top-level formats (`z.email()`) over the deprecated
   `z.string().email()` chain if extending schemas.
 - This is a Next.js 16 project (Turbopack by default, async `cookies()`/`params`/`searchParams`,
@@ -309,6 +339,12 @@ this component's shape rather than reaching for an effect.
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Supabase → Project Settings → API.
 2. Run every file in `supabase/migrations/` in order (and optionally `supabase/seed.sql`) in the
    Supabase SQL Editor.
-3. `npm run dev` and confirm the dashboard loads without the "Couldn't load shipments" error.
-4. On Vercel: add the same two `NEXT_PUBLIC_*` env vars in Project Settings → Environment
+3. Under Authentication → Providers → Email, disable public sign-ups (this app has no sign-up
+   page — users are provisioned by invite only). Then invite yourself and any teammates from
+   Authentication → Users → Invite; each invite auto-creates a `staff`-role `profiles` row via
+   the `0003_profiles_and_roles.sql` trigger. Promote admins with
+   `update public.profiles set role = 'admin' where email = '...'`.
+4. `npm run dev` and confirm `/login` loads, you can sign in with an invited account, and the
+   dashboard loads without the "Couldn't load shipments" error afterwards.
+5. On Vercel: add the same two `NEXT_PUBLIC_*` env vars in Project Settings → Environment
    Variables (all environments), then deploy.

@@ -169,6 +169,7 @@ export function DashboardShell({ initialShipments }: { initialShipments: Shipmen
             onEdit={handleEdit}
             onDelete={handleDelete}
             onStatusChange={handleStatusChange}
+            onSaved={refresh}
             pendingIds={pendingIds}
             stackKey={`${activeType}-${statusFilter}`}
           />
