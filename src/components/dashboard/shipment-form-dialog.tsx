@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -32,8 +32,44 @@ import {
   type ShipmentFormValues,
 } from "@/lib/validations";
 import { SHIPMENT_STATUSES, SHIPMENT_TYPES, STATUS_CONFIG, TYPE_CONFIG } from "@/lib/constants";
+import { buildFieldSuggestions, findLatestShipmentForCompany } from "@/lib/suggestions";
 import { Loader2 } from "lucide-react";
 import type { Shipment, ShipmentType } from "@/lib/types";
+
+/** Invisible native `<datalist>` — pair its `id` with an `Input`'s `list` prop for suggestions. */
+function SuggestionList({ id, options }: { id: string; options: string[] }) {
+  return (
+    <datalist id={id}>
+      {options.map((option) => (
+        <option key={option} value={option} />
+      ))}
+    </datalist>
+  );
+}
+
+/**
+ * Recent-value chips for fields where a native `<datalist>` can't attach (e.g. a
+ * `Textarea`) — clicking one fills the field from shipping history.
+ */
+function QuickPicks({ options, onPick }: { options: string[]; onPick: (value: string) => void }) {
+  const recent = options.slice(0, 4);
+  if (recent.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {recent.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onPick(option)}
+          className="focus-tangerine max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-tangerine-300 hover:bg-tangerine-50 hover:text-tangerine-700 dark:hover:bg-tangerine-950/40 dark:hover:text-tangerine-400"
+          title={option}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const emptyDefaults = (type: ShipmentType): ShipmentFormValues => ({
   type,
@@ -88,12 +124,15 @@ export function ShipmentFormDialog({
   shipment,
   defaultType,
   onSaved,
+  history = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shipment?: Shipment | null;
   defaultType: ShipmentType;
   onSaved: () => void;
+  /** Past shipments, used to power autocomplete suggestions and company auto-fill. */
+  history?: Shipment[];
 }) {
   const isEdit = Boolean(shipment);
   const [isPending, startTransition] = useTransition();
@@ -103,6 +142,9 @@ export function ShipmentFormDialog({
     handleSubmit,
     control,
     reset,
+    watch,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<ShipmentFormValues>({
     resolver: zodResolver(shipmentFormSchema),
@@ -113,6 +155,72 @@ export function ShipmentFormDialog({
     if (!open) return;
     reset(shipment ? shipmentToFormValues(shipment) : emptyDefaults(defaultType));
   }, [open, shipment, defaultType, reset]);
+
+  const companySuggestions = useMemo(() => buildFieldSuggestions(history, "company_name"), [history]);
+  const costCenterSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "cost_center_oca"),
+    [history]
+  );
+  const addressSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "shipping_address"),
+    [history]
+  );
+  const takenOutBySuggestions = useMemo(
+    () => buildFieldSuggestions(history, "taken_out_by"),
+    [history]
+  );
+  const transporterSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "transporter_name"),
+    [history]
+  );
+  const confirmedWithSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "confirmed_with"),
+    [history]
+  );
+  const contactPersonSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "contact_person"),
+    [history]
+  );
+  const contactNumberSuggestions = useMemo(
+    () => buildFieldSuggestions(history, "contact_number"),
+    [history]
+  );
+  const emailSuggestions = useMemo(() => buildFieldSuggestions(history, "email"), [history]);
+
+  const watchedCompanyName = watch("company_name");
+  const watchedType = watch("type");
+
+  // When the company name matches one shipped before (for the same direction, when possible),
+  // fill in whatever address/contact/transporter fields the user hasn't already typed —
+  // never overwrites a field that already has a value. Create-mode only, so editing an
+  // existing shipment never gets silently rewritten.
+  useEffect(() => {
+    if (isEdit || !open) return;
+    const trimmed = watchedCompanyName?.trim();
+    if (!trimmed) return;
+    const match = findLatestShipmentForCompany(history, trimmed, watchedType);
+    if (!match) return;
+
+    const current = getValues();
+    if (!current.shipping_address && match.shipping_address) {
+      setValue("shipping_address", match.shipping_address);
+    }
+    if (!current.contact_person && match.contact_person) {
+      setValue("contact_person", match.contact_person);
+    }
+    if (!current.contact_number && match.contact_number) {
+      setValue("contact_number", match.contact_number);
+    }
+    if (!current.email && match.email) {
+      setValue("email", match.email);
+    }
+    if (!current.transporter_name && match.transporter_name) {
+      setValue("transporter_name", match.transporter_name);
+    }
+    if (!current.cost_center_oca && match.cost_center_oca) {
+      setValue("cost_center_oca", match.cost_center_oca);
+    }
+  }, [watchedCompanyName, watchedType, isEdit, open, history, getValues, setValue]);
 
   function onSubmit(values: ShipmentFormValues) {
     const payload = formValuesToShipmentInsert(values);
@@ -204,7 +312,14 @@ export function ShipmentFormDialog({
               error={errors.company_name?.message}
               className="col-span-2"
             >
-              <Input id="company_name" {...register("company_name")} placeholder="Acme Pvt Ltd" />
+              <Input
+                id="company_name"
+                {...register("company_name")}
+                placeholder="Acme Pvt Ltd"
+                list="company-name-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="company-name-suggestions" options={companySuggestions} />
             </Field>
 
             <Field label="Shipment Date" htmlFor="shipment_date" error={errors.shipment_date?.message}>
@@ -215,7 +330,10 @@ export function ShipmentFormDialog({
                 id="cost_center_oca"
                 {...register("cost_center_oca")}
                 placeholder="CC-101 / OCA1234r"
+                list="cost-center-suggestions"
+                autoComplete="off"
               />
+              <SuggestionList id="cost-center-suggestions" options={costCenterSuggestions} />
             </Field>
 
             <Field label="Invoice No." htmlFor="invoice_number">
@@ -238,21 +356,43 @@ export function ShipmentFormDialog({
             </Field>
             <Field label="Shipping Address" htmlFor="shipping_address">
               <Textarea id="shipping_address" rows={2} {...register("shipping_address")} />
+              <QuickPicks
+                options={addressSuggestions}
+                onPick={(value) => setValue("shipping_address", value, { shouldDirty: true })}
+              />
             </Field>
           </section>
 
           <section className="grid grid-cols-2 gap-4">
             <Field label="Transporter" htmlFor="transporter_name">
-              <Input id="transporter_name" {...register("transporter_name")} />
+              <Input
+                id="transporter_name"
+                {...register("transporter_name")}
+                list="transporter-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="transporter-suggestions" options={transporterSuggestions} />
             </Field>
             <Field label="Tracking No." htmlFor="tracking_number">
               <Input id="tracking_number" {...register("tracking_number")} />
             </Field>
             <Field label="Goods Taken Out By" htmlFor="taken_out_by">
-              <Input id="taken_out_by" {...register("taken_out_by")} />
+              <Input
+                id="taken_out_by"
+                {...register("taken_out_by")}
+                list="taken-out-by-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="taken-out-by-suggestions" options={takenOutBySuggestions} />
             </Field>
             <Field label="Delivery Confirmed With" htmlFor="confirmed_with">
-              <Input id="confirmed_with" {...register("confirmed_with")} />
+              <Input
+                id="confirmed_with"
+                {...register("confirmed_with")}
+                list="confirmed-with-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="confirmed-with-suggestions" options={confirmedWithSuggestions} />
             </Field>
             <Field label="Delivery Date" htmlFor="delivery_date" error={errors.delivery_date?.message}>
               <Input id="delivery_date" type="date" {...register("delivery_date")} />
@@ -274,13 +414,32 @@ export function ShipmentFormDialog({
 
           <section className="grid grid-cols-2 gap-4">
             <Field label="Contact Person" htmlFor="contact_person">
-              <Input id="contact_person" {...register("contact_person")} />
+              <Input
+                id="contact_person"
+                {...register("contact_person")}
+                list="contact-person-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="contact-person-suggestions" options={contactPersonSuggestions} />
             </Field>
             <Field label="Contact Number" htmlFor="contact_number">
-              <Input id="contact_number" {...register("contact_number")} />
+              <Input
+                id="contact_number"
+                {...register("contact_number")}
+                list="contact-number-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="contact-number-suggestions" options={contactNumberSuggestions} />
             </Field>
             <Field label="Email" htmlFor="email" error={errors.email?.message} className="col-span-2">
-              <Input id="email" type="email" {...register("email")} />
+              <Input
+                id="email"
+                type="email"
+                {...register("email")}
+                list="email-suggestions"
+                autoComplete="off"
+              />
+              <SuggestionList id="email-suggestions" options={emailSuggestions} />
             </Field>
             <Field label="Remarks" htmlFor="remarks" className="col-span-2">
               <Textarea id="remarks" rows={2} {...register("remarks")} />

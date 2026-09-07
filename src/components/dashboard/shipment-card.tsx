@@ -110,7 +110,7 @@ export function ShipmentCard({
               "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
               isInward
                 ? "bg-tangerine-100 text-tangerine-700 dark:bg-tangerine-950 dark:text-tangerine-300"
-                : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                : "bg-earth-100 text-earth-700 dark:bg-earth-950 dark:text-earth-300"
             )}
           >
             {isInward ? <Package className="size-4" /> : <Truck className="size-4" />}
@@ -179,17 +179,21 @@ export function ShipmentCard({
         )}
       </div>
 
-      <button
+      <div className="flex-1" />
+
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={(e) => {
           e.stopPropagation();
           handleOpenDetails();
         }}
-        className="focus-tangerine mt-3 flex items-center justify-center gap-1 self-start rounded-lg px-2 py-1 text-xs font-medium text-tangerine-700 transition-colors hover:bg-tangerine-50 dark:text-tangerine-400 dark:hover:bg-tangerine-950/40"
+        className="focus-tangerine mt-3 w-full justify-center gap-1 border-tangerine-200 bg-tangerine-50/60 text-tangerine-700 hover:bg-tangerine-100 hover:text-tangerine-800 dark:border-tangerine-900 dark:bg-tangerine-950/40 dark:text-tangerine-400 dark:hover:bg-tangerine-950/60"
       >
         More details
         <ChevronRight className="size-3.5" />
-      </button>
+      </Button>
 
       <ShipmentDetailsDialog
         shipment={shipment}

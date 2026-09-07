@@ -54,7 +54,7 @@ function downloadCsv(csv: string, filename: string) {
 
 export function DashboardShell({ initialShipments }: { initialShipments: Shipment[] }) {
   const router = useRouter();
-  const [activeType, setActiveType] = useState<ShipmentType>("INWARD");
+  const [activeType, setActiveType] = useState<ShipmentType>("OUTWARD");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ShipmentStatus | "ALL">("ALL");
 
@@ -188,6 +188,7 @@ export function DashboardShell({ initialShipments }: { initialShipments: Shipmen
         shipment={editingShipment}
         defaultType={activeType}
         onSaved={refresh}
+        history={initialShipments}
       />
 
       <UploadSheet

@@ -60,6 +60,19 @@
   --color-tangerine-900: oklch(0.408 0.123 38.172);
   --color-tangerine-950: oklch(0.266 0.079 36.259);
 
+  /* Earth green ramp — accent color paired with the tangerine "sun" ramp above */
+  --color-earth-50: oklch(0.982 0.018 155.826);
+  --color-earth-100: oklch(0.962 0.044 156.743);
+  --color-earth-200: oklch(0.925 0.084 155.995);
+  --color-earth-300: oklch(0.871 0.15 154.449);
+  --color-earth-400: oklch(0.792 0.209 151.711);
+  --color-earth-500: oklch(0.723 0.219 149.579);
+  --color-earth-600: oklch(0.627 0.194 149.214);
+  --color-earth-700: oklch(0.527 0.154 150.069);
+  --color-earth-800: oklch(0.448 0.119 151.328);
+  --color-earth-900: oklch(0.393 0.095 152.535);
+  --color-earth-950: oklch(0.266 0.065 152.934);
+
   /* Shipment status accents, referenced by badge variants */
   --color-status-pending: var(--status-pending);
   --color-status-pending-foreground: var(--status-pending-foreground);
@@ -117,7 +130,7 @@
   --grid-line: oklch(0 0 0 / 6%);
   --glow-tangerine-1: oklch(0.75 0.18 55 / 20%);
   --glow-tangerine-2: oklch(0.77 0.19 70 / 17%);
-  --glow-tangerine-3: oklch(0.65 0.2 40 / 13%);
+  --glow-earth-1: oklch(0.72 0.16 150 / 11%);
 }
 
 .dark {
@@ -165,7 +178,7 @@
   --grid-line: oklch(1 0 0 / 6%);
   --glow-tangerine-1: oklch(0.7 0.19 55 / 22%);
   --glow-tangerine-2: oklch(0.72 0.2 70 / 17%);
-  --glow-tangerine-3: oklch(0.6 0.2 40 / 19%);
+  --glow-earth-1: oklch(0.55 0.14 150 / 16%);
 }
 
 @layer base {
@@ -194,7 +207,7 @@
     background-image:
       radial-gradient(640px circle at 12% 8%, var(--glow-tangerine-1), transparent 60%),
       radial-gradient(560px circle at 88% 12%, var(--glow-tangerine-2), transparent 60%),
-      radial-gradient(720px circle at 50% 105%, var(--glow-tangerine-3), transparent 60%);
+      radial-gradient(720px circle at 50% 105%, var(--glow-earth-1), transparent 60%);
   }
 
   /* Faint structural grid, meant to be masked/faded rather than shown edge-to-edge. */

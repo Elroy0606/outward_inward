@@ -201,6 +201,7 @@ export function ShipmentDetailsDialog({
     >
       <DialogContent
         showCloseButton={false}
+        onClick={(e) => e.stopPropagation()}
         className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
       >
         {/* Tangerine brand header bar */}
