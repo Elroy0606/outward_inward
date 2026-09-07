@@ -22,7 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { ShipmentAcknowledgmentsTab } from "@/components/dashboard/shipment-acknowledgments-tab";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { updateShipment } from "@/lib/actions";
@@ -133,6 +135,7 @@ export function ShipmentDetailsDialog({
   onSaved?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"details" | "acknowledgments">("details");
   const [isPending, startTransition] = useTransition();
   const isInward = shipment.type === "INWARD";
   const referenceNumber = shipment.cost_center_oca ?? shipment.invoice_number;
@@ -155,6 +158,16 @@ export function ShipmentDetailsDialog({
     if (!open) return;
     reset(shipmentToFormValues(shipment));
   }, [open, shipment, reset]);
+
+  // Reset the active tab only on the closed->open transition — not on every out-of-band
+  // shipment refresh, which would otherwise yank the user back to "Details" right after they
+  // confirm an acknowledgment or upload a photo from the Acknowledgments tab. Adjusting state
+  // during render (rather than in an effect) avoids an extra render pass on every open/close.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setActiveTab("details");
+  }
 
   function handleCancelEdit() {
     reset(shipmentToFormValues(shipment));
@@ -239,7 +252,10 @@ export function ShipmentDetailsDialog({
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setActiveTab("details");
+                setIsEditing(true);
+              }}
             >
               <Pencil className="size-3.5" />
               Edit
@@ -247,11 +263,32 @@ export function ShipmentDetailsDialog({
           )}
         </div>
 
-        {isEditing ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as "details" | "acknowledgments")}
+          className="flex flex-1 flex-col gap-0 overflow-hidden"
+        >
+          <div className="shrink-0 border-b border-border/70 bg-background/60 px-6 sm:px-8">
+            <TabsList variant="line" className="h-11 gap-4">
+              <TabsTrigger value="details" className="px-1 text-sm">
+                Shipment Details
+              </TabsTrigger>
+              <TabsTrigger
+                value="acknowledgments"
+                disabled={isEditing}
+                className="px-1 text-sm"
+              >
+                Acknowledgments &amp; Proof
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="details" className="flex flex-col overflow-y-auto">
+            {isEditing ? (
           <form
             id="shipment-edit-form"
             onSubmit={handleSubmit(onSubmit)}
-            className="flex-1 space-y-4 overflow-y-auto px-6 py-6 sm:px-8"
+            className="flex-1 space-y-4 px-6 py-6 sm:px-8"
           >
             <Section icon={ClipboardList} title="Shipment Overview">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -386,7 +423,7 @@ export function ShipmentDetailsDialog({
             </Section>
           </form>
         ) : (
-          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6 sm:px-8">
+          <div className="flex-1 space-y-4 px-6 py-6 sm:px-8">
             <Section icon={ClipboardList} title="Shipment Overview">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
                 <DetailField label="Cost Center / OCA" value={shipment.cost_center_oca ?? "—"} />
@@ -431,6 +468,15 @@ export function ShipmentDetailsDialog({
             </Section>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent
+            value="acknowledgments"
+            className="flex-1 overflow-y-auto px-6 py-6 sm:px-8"
+          >
+            <ShipmentAcknowledgmentsTab shipment={shipment} onSaved={onSaved} />
+          </TabsContent>
+        </Tabs>
 
         {isEditing && (
           <div className="flex shrink-0 flex-row justify-end gap-2 border-t border-border bg-muted/50 px-6 py-4 sm:px-8">

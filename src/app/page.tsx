@@ -17,7 +17,7 @@ function PageShell({
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 mx-3 mt-3 rounded-2xl sm:mx-4 sm:mt-4 lg:mx-6 lg:mt-6">
-        <div className="glass-card mx-auto flex max-w-7xl items-center gap-3 rounded-2xl px-4 py-3.5 sm:px-6">
+        <div className="glass-card mx-auto flex max-w-[1600px] items-center gap-3 rounded-2xl px-4 py-3.5 sm:px-6">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground glow-tangerine">
             <Package className="size-5" />
           </div>
@@ -33,7 +33,7 @@ function PageShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }

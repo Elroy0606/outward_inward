@@ -47,7 +47,7 @@ export function ShipmentCardGrid({
       variants={cardGridVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3"
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3"
     >
       {/* `initial` defaults to true here on purpose: each `stackKey` change remounts this
           AnimatePresence instance, and we want that fresh batch of cards to play the

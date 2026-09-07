@@ -34,11 +34,33 @@ export interface Shipment {
   contact_number: string | null;
   email: string | null;
   remarks: string | null;
+  carrier_delivery_confirmed: boolean;
+  carrier_delivery_confirmed_at: string | null;
+  client_receipt_confirmed: boolean;
+  client_receipt_confirmed_at: string | null;
+  pre_shipping_photos: string[];
+  post_delivery_photos: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type ShipmentInsert = Omit<Shipment, "id" | "created_at" | "updated_at">;
+/**
+ * Acknowledgment/photo fields have DB defaults and aren't set by the create form or the
+ * Excel importer, so they're excluded here — see `updateShipmentAcknowledgment` /
+ * `updateShipmentPhotos` in `lib/actions.ts` for how they're written after the fact.
+ */
+export type ShipmentInsert = Omit<
+  Shipment,
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "carrier_delivery_confirmed"
+  | "carrier_delivery_confirmed_at"
+  | "client_receipt_confirmed"
+  | "client_receipt_confirmed_at"
+  | "pre_shipping_photos"
+  | "post_delivery_photos"
+>;
 export type ShipmentUpdate = Partial<ShipmentInsert>;
 
 export interface ShipmentKpis {

@@ -22,7 +22,9 @@ import {
   Package,
   CalendarDays,
   Hash,
+  IndianRupee,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 import type { Shipment, ShipmentStatus } from "@/lib/types";
 
 export const cardGridVariants = {
@@ -85,8 +87,18 @@ export function ShipmentCard({
       exit="exit"
       whileHover={{ y: -4 }}
       transition={{ layout: { duration: 0.25, ease: "easeOut" } }}
+      onClick={handleOpenDetails}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpenDetails();
+        }
+      }}
       className={cn(
-        "glass-card glass-card-hover flex flex-col rounded-2xl p-4 transition-shadow duration-200",
+        "glass-card glass-card-hover flex cursor-pointer flex-col rounded-2xl p-4 transition-shadow duration-200 focus-tangerine",
         isActive && "ring-2 ring-tangerine-500 ring-offset-2 ring-offset-background",
         isPending && "pointer-events-none opacity-60"
       )}
@@ -104,19 +116,22 @@ export function ShipmentCard({
             {isInward ? <Package className="size-4" /> : <Truck className="size-4" />}
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold tracking-tight text-foreground">
+            <h3 className="text-base leading-snug font-semibold tracking-tight break-words text-foreground">
               {shipment.company_name}
             </h3>
             {referenceNumber && (
-              <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                <Hash className="size-3" />
-                {referenceNumber}
+              <p className="mt-0.5 flex items-start gap-1 text-xs break-words text-muted-foreground">
+                <Hash className="mt-0.5 size-3 shrink-0" />
+                <span>{referenceNumber}</span>
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div
+          className="flex shrink-0 items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <StatusPopover
             status={shipment.status}
             onChange={(status) => onStatusChange(shipment, status)}
@@ -150,8 +165,12 @@ export function ShipmentCard({
           <CalendarDays className="size-3.5" />
           {formatDate(shipment.shipment_date)}
         </span>
+        <span className="flex items-center gap-1.5">
+          <IndianRupee className="size-3.5" />
+          {formatCurrency(shipment.shipping_charges)}
+        </span>
         {(shipment.transporter_name || shipment.tracking_number) && (
-          <span className="flex items-center gap-1.5 truncate">
+          <span className="flex min-w-0 items-center gap-1.5">
             <Truck className="size-3.5 shrink-0" />
             <span className="truncate">
               {shipment.transporter_name ?? shipment.tracking_number}
@@ -162,7 +181,10 @@ export function ShipmentCard({
 
       <button
         type="button"
-        onClick={handleOpenDetails}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleOpenDetails();
+        }}
         className="focus-tangerine mt-3 flex items-center justify-center gap-1 self-start rounded-lg px-2 py-1 text-xs font-medium text-tangerine-700 transition-colors hover:bg-tangerine-50 dark:text-tangerine-400 dark:hover:bg-tangerine-950/40"
       >
         More details
