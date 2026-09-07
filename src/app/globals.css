@@ -1,26 +1,230 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Tangerine brand ramp — theme.extend.colors.tangerine equivalent in Tailwind v4 */
+  --color-tangerine-50: oklch(0.98 0.016 73.684);
+  --color-tangerine-100: oklch(0.954 0.038 75.164);
+  --color-tangerine-200: oklch(0.901 0.076 70.697);
+  --color-tangerine-300: oklch(0.837 0.128 66.29);
+  --color-tangerine-400: oklch(0.75 0.183 55.934);
+  --color-tangerine-500: oklch(0.705 0.213 47.604);
+  --color-tangerine-600: oklch(0.646 0.222 41.116);
+  --color-tangerine-700: oklch(0.553 0.195 38.402);
+  --color-tangerine-800: oklch(0.47 0.157 37.304);
+  --color-tangerine-900: oklch(0.408 0.123 38.172);
+  --color-tangerine-950: oklch(0.266 0.079 36.259);
+
+  /* Shipment status accents, referenced by badge variants */
+  --color-status-pending: var(--status-pending);
+  --color-status-pending-foreground: var(--status-pending-foreground);
+  --color-status-transit: var(--status-transit);
+  --color-status-transit-foreground: var(--status-transit-foreground);
+  --color-status-delivered: var(--status-delivered);
+  --color-status-delivered-foreground: var(--status-delivered-foreground);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-foreground: var(--status-cancelled-foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: oklch(0.985 0.002 75);
+  --foreground: oklch(0.21 0.006 285.885);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.006 285.885);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.006 285.885);
+  --primary: oklch(0.646 0.222 41.116);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.274 0.006 286.033);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.442 0.017 285.786);
+  --accent: oklch(0.954 0.038 75.164);
+  --accent-foreground: oklch(0.47 0.157 37.304);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.213 47.604);
+  --chart-1: oklch(0.705 0.213 47.604);
+  --chart-2: oklch(0.769 0.188 70.08);
+  --chart-3: oklch(0.685 0.169 237.323);
+  --chart-4: oklch(0.696 0.17 162.48);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --radius: 0.65rem;
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.967 0.001 286.375);
+  --sidebar-primary: oklch(0.646 0.222 41.116);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.967 0.001 286.375);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.705 0.213 47.604);
+
+  --status-pending: oklch(0.954 0.038 75.164);
+  --status-pending-foreground: oklch(0.47 0.157 37.304);
+  --status-transit: oklch(0.929 0.041 232.5);
+  --status-transit-foreground: oklch(0.443 0.11 240.79);
+  --status-delivered: oklch(0.925 0.06 154.5);
+  --status-delivered-foreground: oklch(0.393 0.095 152.535);
+  --status-cancelled: oklch(0.93 0.05 12.5);
+  --status-cancelled-foreground: oklch(0.475 0.163 15.34);
+
+  --grid-line: oklch(0 0 0 / 6%);
+  --glow-tangerine-1: oklch(0.75 0.18 55 / 20%);
+  --glow-tangerine-2: oklch(0.77 0.19 70 / 17%);
+  --glow-tangerine-3: oklch(0.65 0.2 40 / 13%);
+}
+
+.dark {
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.967 0.001 286.375);
+  --card: oklch(0.194 0.006 285.9);
+  --card-foreground: oklch(0.967 0.001 286.375);
+  --popover: oklch(0.194 0.006 285.9);
+  --popover-foreground: oklch(0.967 0.001 286.375);
+  --primary: oklch(0.705 0.213 47.604);
+  --primary-foreground: oklch(0.141 0.005 285.823);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.967 0.001 286.375);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.3 0.04 45);
+  --accent-foreground: oklch(0.901 0.076 70.697);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.705 0.213 47.604);
+  --chart-1: oklch(0.705 0.213 47.604);
+  --chart-2: oklch(0.769 0.188 70.08);
+  --chart-3: oklch(0.685 0.169 237.323);
+  --chart-4: oklch(0.696 0.17 162.48);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.115 0.005 285.823);
+  --sidebar-foreground: oklch(0.967 0.001 286.375);
+  --sidebar-primary: oklch(0.705 0.213 47.604);
+  --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.967 0.001 286.375);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.705 0.213 47.604);
+
+  --status-pending: oklch(0.3 0.06 75);
+  --status-pending-foreground: oklch(0.901 0.076 70.697);
+  --status-transit: oklch(0.3 0.06 235);
+  --status-transit-foreground: oklch(0.809 0.105 251.813);
+  --status-delivered: oklch(0.28 0.06 155);
+  --status-delivered-foreground: oklch(0.845 0.143 164.978);
+  --status-cancelled: oklch(0.3 0.07 15);
+  --status-cancelled-foreground: oklch(0.808 0.114 19.571);
+
+  --grid-line: oklch(1 0 0 / 6%);
+  --glow-tangerine-1: oklch(0.7 0.19 55 / 22%);
+  --glow-tangerine-2: oklch(0.72 0.2 70 / 17%);
+  --glow-tangerine-3: oklch(0.6 0.2 40 / 19%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .glow-tangerine {
+    box-shadow: 0 0 0 1px oklch(0.705 0.213 47.604 / 0.25), 0 8px 24px -8px oklch(0.646 0.222 41.116 / 0.45);
+  }
+  .focus-tangerine {
+    @apply focus-visible:ring-2 focus-visible:ring-tangerine-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none;
+  }
+
+  /* Fixed full-viewport backdrop: soft tangerine/amber mesh glows over the base surface. */
+  .atmosphere {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(640px circle at 12% 8%, var(--glow-tangerine-1), transparent 60%),
+      radial-gradient(560px circle at 88% 12%, var(--glow-tangerine-2), transparent 60%),
+      radial-gradient(720px circle at 50% 105%, var(--glow-tangerine-3), transparent 60%);
+  }
+
+  /* Faint structural grid, meant to be masked/faded rather than shown edge-to-edge. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  /* Elevated glassmorphism surface used by cards, toolbars, and the header. */
+  .glass-card {
+    @apply border border-slate-200/60 bg-white/80 shadow-xl shadow-slate-900/[0.04] backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-900/70 dark:shadow-black/30;
+  }
+
+  .glass-card-hover {
+    @apply transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1 hover:border-tangerine-400/60 hover:shadow-2xl hover:shadow-tangerine-500/10;
+  }
+
+  /* Colored ambient glow rings for status badges — one per shipment status. */
+  .status-glow-pending {
+    box-shadow: 0 0 0 1px oklch(0.77 0.16 75 / 45%), 0 0 18px -3px oklch(0.77 0.16 75 / 65%);
+  }
+  .status-glow-transit {
+    box-shadow: 0 0 0 1px oklch(0.7 0.13 235 / 45%), 0 0 18px -3px oklch(0.7 0.13 235 / 65%);
+  }
+  .status-glow-delivered {
+    box-shadow: 0 0 0 1px oklch(0.7 0.16 155 / 45%), 0 0 18px -3px oklch(0.7 0.16 155 / 65%);
+  }
+  .status-glow-cancelled {
+    box-shadow: 0 0 0 1px oklch(0.65 0.18 15 / 45%), 0 0 18px -3px oklch(0.65 0.18 15 / 65%);
+  }
 }
