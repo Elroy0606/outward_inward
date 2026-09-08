@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useForm, Controller, type UseFormRegisterReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -48,25 +48,66 @@ function SuggestionList({ id, options }: { id: string; options: string[] }) {
 }
 
 /**
- * Recent-value chips for fields where a native `<datalist>` can't attach (e.g. a
- * `Textarea`) — clicking one fills the field from shipping history.
+ * Type-to-filter autocomplete for fields where a native `<datalist>` can't attach (e.g. a
+ * `Textarea`) — filters the address history against whatever's typed so far and shows only
+ * a handful of matches in a scrollable dropdown, so it stays usable no matter how many past
+ * addresses pile up. Reflects new addresses automatically since `options` comes straight
+ * from the (auto-refreshing) shipment history.
  */
-function QuickPicks({ options, onPick }: { options: string[]; onPick: (value: string) => void }) {
-  const recent = options.slice(0, 4);
-  if (recent.length === 0) return null;
+function AddressAutocomplete({
+  registerProps,
+  value,
+  options,
+  onSelect,
+}: {
+  registerProps: UseFormRegisterReturn<"shipping_address">;
+  value: string | undefined;
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const query = value?.trim().toLowerCase() ?? "";
+  const filtered = (query ? options.filter((o) => o.toLowerCase().includes(query)) : options).slice(
+    0,
+    8
+  );
+
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {recent.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onPick(option)}
-          className="focus-tangerine max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-tangerine-300 hover:bg-tangerine-50 hover:text-tangerine-700 dark:hover:bg-tangerine-950/40 dark:hover:text-tangerine-400"
-          title={option}
-        >
-          {option}
-        </button>
-      ))}
+    <div className="relative">
+      <Textarea
+        id="shipping_address"
+        rows={2}
+        autoComplete="off"
+        {...registerProps}
+        onFocus={() => setOpen(true)}
+        onBlur={(e) => {
+          registerProps.onBlur(e);
+          setOpen(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
+          {filtered.map((option) => (
+            <button
+              key={option}
+              type="button"
+              // Prevents the textarea from blurring (and the dropdown closing) before the click registers.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onSelect(option);
+                setOpen(false);
+              }}
+              title={option}
+              className="block w-full truncate rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-tangerine-50 hover:text-tangerine-700 dark:hover:bg-tangerine-950/40 dark:hover:text-tangerine-400"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -355,10 +396,11 @@ export function ShipmentFormDialog({
               />
             </Field>
             <Field label="Shipping Address" htmlFor="shipping_address">
-              <Textarea id="shipping_address" rows={2} {...register("shipping_address")} />
-              <QuickPicks
+              <AddressAutocomplete
+                registerProps={register("shipping_address")}
+                value={watch("shipping_address")}
                 options={addressSuggestions}
-                onPick={(value) => setValue("shipping_address", value, { shouldDirty: true })}
+                onSelect={(value) => setValue("shipping_address", value, { shouldDirty: true })}
               />
             </Field>
           </section>
