@@ -145,3 +145,10 @@ export const shipmentInsertSchema = z.object({
 });
 
 export const shipmentUpdateSchema = shipmentInsertSchema.partial();
+
+/** Validated server-side before any shipment is deleted — see `deleteShipment` in `actions.ts`. */
+export const shipmentDeletionReasonSchema = z
+  .string()
+  .trim()
+  .min(3, "A reason for deletion is required")
+  .max(500);

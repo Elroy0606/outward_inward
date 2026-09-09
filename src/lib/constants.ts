@@ -88,6 +88,15 @@ export const STATUS_CONFIG: Record<
   },
 };
 
+/** Quick-pick categories shown in the delete confirmation dialog's reason dropdown. */
+export const DELETION_REASONS = [
+  "Duplicate entry",
+  "Data entry error",
+  "Shipment cancelled",
+  "Customer/supplier request",
+  "Other",
+] as const;
+
 export const TYPE_CONFIG: Record<ShipmentType, { label: string; description: string }> = {
   INWARD: {
     label: "Inward Shipments",

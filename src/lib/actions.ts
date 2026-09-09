@@ -3,7 +3,11 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { shipmentInsertSchema, shipmentUpdateSchema } from "@/lib/validations";
+import {
+  shipmentDeletionReasonSchema,
+  shipmentInsertSchema,
+  shipmentUpdateSchema,
+} from "@/lib/validations";
 import type { Shipment, ShipmentInsert, ShipmentStatus, ShipmentUpdate } from "@/lib/types";
 
 export interface ActionResult<T = undefined> {
@@ -63,11 +67,49 @@ export async function updateShipmentStatus(
   return updateShipment(id, { status });
 }
 
-export async function deleteShipment(id: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("shipments").delete().eq("id", id);
+/**
+ * Deletes a shipment, but only after writing a `shipment_deletion_logs` entry with who deleted
+ * it, a full snapshot of the record, why (the caller-supplied reason), and when — see
+ * `supabase/migrations/0006_shipment_deletion_logs.sql`. The log write happens first and the
+ * function bails out if it fails, so a shipment is never removed without a matching audit trail.
+ */
+export async function deleteShipment(id: string, reason: string): Promise<ActionResult> {
+  const parsedReason = shipmentDeletionReasonSchema.safeParse(reason);
+  if (!parsedReason.success) {
+    return { success: false, error: parsedReason.error.issues.map((i) => i.message).join("; ") };
+  }
 
-  if (error) return { success: false, error: error.message };
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "You must be signed in to delete a shipment." };
+  }
+
+  const { data: shipment, error: fetchError } = await supabase
+    .from("shipments")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (fetchError || !shipment) {
+    return { success: false, error: fetchError?.message ?? "Shipment not found." };
+  }
+
+  const { error: logError } = await supabase.from("shipment_deletion_logs").insert({
+    shipment_id: id,
+    shipment_snapshot: shipment,
+    deleted_by: user.id,
+    deleted_by_email: user.email ?? "unknown",
+    deletion_reason: parsedReason.data,
+  });
+  if (logError) {
+    return { success: false, error: `Couldn't record the deletion audit log: ${logError.message}` };
+  }
+
+  const { error: deleteError } = await supabase.from("shipments").delete().eq("id", id);
+  if (deleteError) return { success: false, error: deleteError.message };
 
   revalidatePath("/");
   return { success: true };

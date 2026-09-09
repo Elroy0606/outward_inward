@@ -63,6 +63,17 @@ export type ShipmentInsert = Omit<
 >;
 export type ShipmentUpdate = Partial<ShipmentInsert>;
 
+/** Row shape as it comes back from the `shipment_deletion_logs` table (see 0006 migration). */
+export interface ShipmentDeletionLog {
+  id: string;
+  shipment_id: string;
+  shipment_snapshot: Shipment;
+  deleted_by: string | null;
+  deleted_by_email: string;
+  deletion_reason: string;
+  deleted_at: string;
+}
+
 export interface ShipmentKpis {
   total: number;
   pending: number;

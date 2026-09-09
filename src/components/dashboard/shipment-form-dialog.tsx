@@ -198,10 +198,6 @@ export function ShipmentFormDialog({
   }, [open, shipment, defaultType, reset]);
 
   const companySuggestions = useMemo(() => buildFieldSuggestions(history, "company_name"), [history]);
-  const costCenterSuggestions = useMemo(
-    () => buildFieldSuggestions(history, "cost_center_oca"),
-    [history]
-  );
   const addressSuggestions = useMemo(
     () => buildFieldSuggestions(history, "shipping_address"),
     [history]
@@ -234,7 +230,8 @@ export function ShipmentFormDialog({
   // When the company name matches one shipped before (for the same direction, when possible),
   // fill in whatever address/contact/transporter fields the user hasn't already typed —
   // never overwrites a field that already has a value. Create-mode only, so editing an
-  // existing shipment never gets silently rewritten.
+  // existing shipment never gets silently rewritten. Cost Center / OCA is deliberately excluded:
+  // it's unique per shipment, so it must never be copied from a prior shipment.
   useEffect(() => {
     if (isEdit || !open) return;
     const trimmed = watchedCompanyName?.trim();
@@ -258,9 +255,6 @@ export function ShipmentFormDialog({
     if (!current.transporter_name && match.transporter_name) {
       setValue("transporter_name", match.transporter_name);
     }
-    if (!current.cost_center_oca && match.cost_center_oca) {
-      setValue("cost_center_oca", match.cost_center_oca);
-    }
   }, [watchedCompanyName, watchedType, isEdit, open, history, getValues, setValue]);
 
   function onSubmit(values: ShipmentFormValues) {
@@ -281,6 +275,9 @@ export function ShipmentFormDialog({
         description: payload.company_name,
       });
       onOpenChange(false);
+      // Clear immediately so the next "Add Shipment" always opens blank, regardless of
+      // whether the open-state effect below has re-run yet.
+      if (!isEdit) reset(emptyDefaults(watchedType));
       onSaved();
     });
   }
@@ -356,7 +353,6 @@ export function ShipmentFormDialog({
               <Input
                 id="company_name"
                 {...register("company_name")}
-                placeholder="Acme Pvt Ltd"
                 list="company-name-suggestions"
                 autoComplete="off"
               />
@@ -367,14 +363,7 @@ export function ShipmentFormDialog({
               <Input id="shipment_date" type="date" {...register("shipment_date")} />
             </Field>
             <Field label="Cost Center OCA" htmlFor="cost_center_oca">
-              <Input
-                id="cost_center_oca"
-                {...register("cost_center_oca")}
-                placeholder="CC-101 / OCA1234r"
-                list="cost-center-suggestions"
-                autoComplete="off"
-              />
-              <SuggestionList id="cost-center-suggestions" options={costCenterSuggestions} />
+              <Input id="cost_center_oca" {...register("cost_center_oca")} autoComplete="off" />
             </Field>
 
             <Field label="Invoice No." htmlFor="invoice_number">
@@ -388,12 +377,7 @@ export function ShipmentFormDialog({
               htmlFor="particulars"
               error={errors.particulars?.message}
             >
-              <Textarea
-                id="particulars"
-                rows={2}
-                {...register("particulars")}
-                placeholder="What's being shipped"
-              />
+              <Textarea id="particulars" rows={2} {...register("particulars")} />
             </Field>
             <Field label="Shipping Address" htmlFor="shipping_address">
               <AddressAutocomplete
