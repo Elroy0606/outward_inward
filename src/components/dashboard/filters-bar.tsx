@@ -40,7 +40,7 @@ export function FiltersBar({
         </Button>
         <MotionButton
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500 text-white font-semibold shadow-md hover:brightness-105 transition [text-shadow:0_1px_2px_rgb(0_0_0/0.45)]"
           onClick={onAdd}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
