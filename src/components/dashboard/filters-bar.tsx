@@ -31,7 +31,7 @@ export function FiltersBar({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" className="gap-1.5" onClick={onExport}>
           <Download className="size-3.5" /> Export
         </Button>

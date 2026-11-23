@@ -200,8 +200,9 @@ soft-shadowed panel (deliberately not `.glass-card`, so it stands off the warm p
 metrics and charts are intentionally not on this screen. `shipping_charges` remains on the record,
 form, details dialog, import, and export.
 
-`ShipmentTable` is a real single-line `<table>` with a sticky header at every screen size, scrolling
-horizontally when narrow. It shows exactly seven columns: Date, OCA No, Name of Customer, Item
+`ShipmentTable` has three layouts with no horizontal scrolling: two-line strips below `md`, a
+5-column table from `md` to `lg` (no Date or Tracking Number), and the full table from `lg`. Below
+1440px the table uses fixed column widths. The full table shows seven columns: Date, OCA No, Name of Customer, Item
 (`particulars`, truncated with the full text on hover), Transporter Name, Tracking Number, and
 Transit / Status (day count for In Transit, a status badge otherwise).
 Status changes, edit, and delete live in the details

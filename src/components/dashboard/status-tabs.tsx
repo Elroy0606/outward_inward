@@ -32,7 +32,7 @@ export function StatusTabs({
     <div
       role="tablist"
       aria-label="Filter by status"
-      className="flex max-w-full min-w-0 items-center gap-1 overflow-x-auto"
+      className="flex max-w-full min-w-0 flex-wrap items-center gap-1"
     >
       {tabs.map((tab) => {
         const active = value === tab.value;
