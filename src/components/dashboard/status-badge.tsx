@@ -13,7 +13,7 @@ export function StatusBadge({
   const config = STATUS_CONFIG[status];
   return (
     <Badge className={cn(config.badgeClass, "gap-1.5 font-semibold", className)}>
-      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      <span className="size-1.5 rounded-full bg-current" />
       {config.label}
     </Badge>
   );

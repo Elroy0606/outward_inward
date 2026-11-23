@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, Package } from "lucide-react";
+import Image from "next/image";
+import { AlertTriangle } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { createClient } from "@/lib/supabase/server";
@@ -16,18 +17,28 @@ function PageShell({
 }) {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 mx-3 mt-3 rounded-2xl sm:mx-4 sm:mt-4 lg:mx-6 lg:mt-6">
-        <div className="glass-card mx-auto flex max-w-[1600px] items-center gap-3 rounded-2xl px-4 py-3.5 sm:px-6">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground glow-tangerine">
-            <Package className="size-5" />
+      <header className="bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500 relative overflow-hidden sticky top-0 z-50 shadow-md">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-2.5 text-zinc-950 sm:px-6 lg:px-8">
+          {/* The source PNG is 91x78, so 39px tall stays 1:1 on 2x screens. */}
+          <div className="shrink-0 rounded-lg bg-white p-1 shadow-sm">
+            <Image
+              src="/images/logo.png"
+              alt="Celsun logo"
+              width={91}
+              height={78}
+              unoptimized
+              priority
+              className="h-[39px] w-auto object-contain"
+            />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              Inward Outward Shipment Tracker
-            </h1>
-            <p className="truncate text-xs text-muted-foreground">
-              Live shipment visibility, replacing the manual tracker sheet.
+            <p className="truncate text-base font-bold tracking-tight sm:text-lg">
+              <span className="sm:hidden">Celsun EcoEnergy</span>
+              <span className="hidden sm:inline">
+                Celsun EcoEnergy &amp; Infratech Holdings Pvt. Ltd.
+              </span>
             </p>
+            <h1 className="truncate text-xs font-semibold">Inward Outward Shipment Tracker</h1>
           </div>
           {userEmail && <UserMenu email={userEmail} role={userRole ?? "staff"} />}
         </div>

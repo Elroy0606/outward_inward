@@ -34,7 +34,7 @@ export function TypeTabs({
             aria-selected={active}
             onClick={() => onChange(type)}
             className={cn(
-              "relative flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-initial",
+              "relative flex flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition-colors sm:flex-initial sm:px-4",
               active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -47,7 +47,8 @@ export function TypeTabs({
             )}
             <span className="relative z-10 flex items-center gap-2">
               <Icon className="size-4" />
-              {label}
+              <span className="sm:hidden">{label.split(" ")[0]}</span>
+              <span className="hidden sm:inline">{label}</span>
               <span
                 className={cn(
                   "ml-1 rounded-full px-1.5 py-0.5 text-xs tabular-nums",

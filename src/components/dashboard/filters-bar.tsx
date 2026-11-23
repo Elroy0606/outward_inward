@@ -3,59 +3,32 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MotionButton } from "@/components/motion/motion-button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { STATUS_CONFIG, SHIPMENT_STATUSES } from "@/lib/constants";
 import { Search, Plus, UploadCloud, Download } from "lucide-react";
-import type { ShipmentStatus } from "@/lib/types";
 
 export function FiltersBar({
   search,
   onSearchChange,
-  status,
-  onStatusChange,
   onAdd,
   onImport,
   onExport,
 }: {
   search: string;
   onSearchChange: (value: string) => void;
-  status: ShipmentStatus | "ALL";
-  onStatusChange: (value: ShipmentStatus | "ALL") => void;
   onAdd: () => void;
   onImport: () => void;
   onExport: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search company, particulars, tracking…"
-            className="pl-8"
-          />
-        </div>
-        <Select value={status} onValueChange={(v) => onStatusChange(v as ShipmentStatus | "ALL")}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All statuses</SelectItem>
-            {SHIPMENT_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_CONFIG[s].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="relative w-full sm:w-72">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search company, particulars, tracking…"
+          aria-label="Search shipments"
+          className="pl-8"
+        />
       </div>
 
       <div className="flex items-center gap-2">

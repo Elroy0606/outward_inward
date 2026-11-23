@@ -97,7 +97,7 @@ export function StatusPopover({
               "cursor-pointer gap-1.5 py-1 pr-1.5 pl-2.5 text-[0.7rem] font-semibold"
             )}
           >
-            <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+            <span className="size-1.5 rounded-full bg-current" />
             {config.label}
             <ChevronDown className="size-3 opacity-70" />
           </Badge>
@@ -139,7 +139,7 @@ export function StatusPopover({
                   <span
                     className={cn(
                       "size-1.5 rounded-full",
-                      isArmed || isSucceeded ? "bg-white" : optionConfig.dotClass
+                      isArmed || isSucceeded ? "bg-current" : optionConfig.dotClass
                     )}
                   />
                   {optionConfig.label}

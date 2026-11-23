@@ -61,30 +61,34 @@ export const STATUS_CONFIG: Record<
   PENDING: {
     label: "Pending",
     badgeClass: "bg-status-pending text-status-pending-foreground border-transparent",
-    dotClass: "bg-tangerine-500",
+    dotClass: "bg-status-pending",
     glowClass: "status-glow-pending",
-    solidClass: "bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-400",
+    solidClass:
+      "bg-status-pending text-status-pending-foreground hover:brightness-95 focus-visible:ring-status-pending",
   },
   IN_TRANSIT: {
     label: "In Transit",
     badgeClass: "bg-status-transit text-status-transit-foreground border-transparent",
-    dotClass: "bg-sky-500",
+    dotClass: "bg-status-transit",
     glowClass: "status-glow-transit",
-    solidClass: "bg-sky-500 text-white hover:bg-sky-600 focus-visible:ring-sky-400",
+    solidClass:
+      "bg-status-transit text-status-transit-foreground hover:brightness-95 focus-visible:ring-status-transit",
   },
   DELIVERED: {
     label: "Delivered",
     badgeClass: "bg-status-delivered text-status-delivered-foreground border-transparent",
-    dotClass: "bg-emerald-500",
+    dotClass: "bg-status-delivered",
     glowClass: "status-glow-delivered",
-    solidClass: "bg-emerald-500 text-white hover:bg-emerald-600 focus-visible:ring-emerald-400",
+    solidClass:
+      "bg-status-delivered text-status-delivered-foreground hover:brightness-95 focus-visible:ring-status-delivered",
   },
   CANCELLED: {
     label: "Cancelled",
     badgeClass: "bg-status-cancelled text-status-cancelled-foreground border-transparent",
-    dotClass: "bg-rose-500",
+    dotClass: "bg-status-cancelled",
     glowClass: "status-glow-cancelled",
-    solidClass: "bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400",
+    solidClass:
+      "bg-status-cancelled text-status-cancelled-foreground hover:brightness-95 focus-visible:ring-status-cancelled",
   },
 };
 

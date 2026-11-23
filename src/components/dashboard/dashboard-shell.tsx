@@ -1,43 +1,69 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { KpiSidebar } from "@/components/dashboard/kpi-sidebar";
+import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TypeTabs } from "@/components/dashboard/type-tabs";
 import { FiltersBar } from "@/components/dashboard/filters-bar";
-import { ShipmentCardGrid } from "@/components/dashboard/shipment-card-grid";
+import { StatusTabs, type StatusFilter } from "@/components/dashboard/status-tabs";
+import {
+  ShipmentTable,
+  type ColumnSort,
+  type SortDirection,
+  type SortKey,
+} from "@/components/dashboard/shipment-table";
+import { ShipmentDetailsDialog } from "@/components/dashboard/shipment-details-dialog";
 import { ShipmentFormDialog } from "@/components/dashboard/shipment-form-dialog";
 import { UploadSheet } from "@/components/dashboard/upload-sheet";
 import { DeleteShipmentDialog } from "@/components/dashboard/delete-shipment-dialog";
 import { updateShipmentStatus } from "@/lib/actions";
 import { exportRowsToCsv } from "@/lib/excel-parser";
-import type { Shipment, ShipmentKpis, ShipmentStatus, ShipmentType } from "@/lib/types";
+import { getTodayKey, getTransitAging, getTransitStartKey } from "@/lib/transit";
+import { cn } from "@/lib/utils";
+import type { Shipment, ShipmentStatus, ShipmentType } from "@/lib/types";
 
-function computeKpis(shipments: Shipment[]): ShipmentKpis {
-  return shipments.reduce<ShipmentKpis>(
-    (acc, s) => {
-      acc.total += 1;
-      if (s.status === "PENDING") acc.pending += 1;
-      if (s.status === "IN_TRANSIT") acc.inTransit += 1;
-      if (s.status === "DELIVERED") acc.delivered += 1;
-      if (s.status === "CANCELLED") acc.cancelled += 1;
-      if (s.type === "INWARD") acc.inwardCount += 1;
-      if (s.type === "OUTWARD") acc.outwardCount += 1;
-      acc.totalShippingCharges += s.shipping_charges ?? 0;
-      return acc;
-    },
-    {
-      total: 0,
-      pending: 0,
-      inTransit: 0,
-      delivered: 0,
-      cancelled: 0,
-      inwardCount: 0,
-      outwardCount: 0,
-      totalShippingCharges: 0,
-    }
+const PAGE_SIZE = 50;
+const DEFAULT_COLUMN_SORT: ColumnSort = { key: "shipment_date", direction: "desc" };
+
+/** Keeps the date current in a tab left open past midnight. */
+function subscribeToMinuteTick(onTick: () => void) {
+  const interval = setInterval(onTick, 60_000);
+  return () => clearInterval(interval);
+}
+
+/** Compares nullable strings, always placing empty values last. */
+function compareNullable(a: string | null, b: string | null, direction: SortDirection) {
+  if (a === b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const result = a.localeCompare(b, undefined, { sensitivity: "base" });
+  return direction === "asc" ? result : -result;
+}
+
+/** In Transit first and oldest first, then everything else newest first. */
+function comparePriority(a: Shipment, b: Shipment) {
+  return (
+    compareNullable(getTransitStartKey(a), getTransitStartKey(b), "asc") ||
+    compareNullable(a.shipment_date, b.shipment_date, "desc")
   );
+}
+
+function compareColumn(a: Shipment, b: Shipment, { key, direction }: ColumnSort) {
+  switch (key) {
+    case "company":
+      return compareNullable(a.company_name, b.company_name, direction);
+    case "age":
+      // Longest in transit means the earliest date, so the direction is inverted.
+      return compareNullable(
+        getTransitStartKey(a),
+        getTransitStartKey(b),
+        direction === "desc" ? "asc" : "desc"
+      );
+    default:
+      return compareNullable(a.shipment_date, b.shipment_date, direction);
+  }
 }
 
 function downloadCsv(csv: string, filename: string) {
@@ -54,27 +80,54 @@ function downloadCsv(csv: string, filename: string) {
 
 export function DashboardShell({ initialShipments }: { initialShipments: Shipment[] }) {
   const router = useRouter();
+  const todayKey = useSyncExternalStore(subscribeToMinuteTick, getTodayKey, getTodayKey);
   const [activeType, setActiveType] = useState<ShipmentType>("OUTWARD");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ShipmentStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  // null means the priority view (oldest In Transit first) is on.
+  const [columnSort, setColumnSort] = useState<ColumnSort | null>(null);
+  const [page, setPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingShipment, setEditingShipment] = useState<Shipment | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Shipment | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const canSortByAge = statusFilter === "ALL" || statusFilter === "IN_TRANSIT";
+  // Other tabs have no transit ages, so an age sort falls back to newest first there.
+  const effectiveSort =
+    columnSort?.key === "age" && !canSortByAge ? DEFAULT_COLUMN_SORT : columnSort;
 
   const typeShipments = useMemo(
     () => initialShipments.filter((s) => s.type === activeType),
     [initialShipments, activeType]
   );
 
-  const kpis = useMemo(() => computeKpis(typeShipments), [typeShipments]);
+  const { statusCounts, warningCount, criticalCount } = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      ALL: typeShipments.length,
+      PENDING: 0,
+      IN_TRANSIT: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+    };
+    let warning = 0;
+    let critical = 0;
+    for (const shipment of typeShipments) {
+      counts[shipment.status] += 1;
+      const level = getTransitAging(shipment, todayKey)?.level;
+      if (level === "warning") warning += 1;
+      if (level === "critical") critical += 1;
+    }
+    return { statusCounts: counts, warningCount: warning, criticalCount: critical };
+  }, [typeShipments, todayKey]);
 
   const filteredShipments = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return typeShipments.filter((s) => {
+    const matches = typeShipments.filter((s) => {
       if (statusFilter !== "ALL" && s.status !== statusFilter) return false;
       if (!query) return true;
       return [
@@ -89,23 +142,64 @@ export function DashboardShell({ initialShipments }: { initialShipments: Shipmen
         .filter(Boolean)
         .some((field) => field!.toLowerCase().includes(query));
     });
-  }, [typeShipments, statusFilter, search]);
+    return matches.sort((a, b) =>
+      effectiveSort ? compareColumn(a, b, effectiveSort) : comparePriority(a, b)
+    );
+  }, [typeShipments, statusFilter, search, effectiveSort]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredShipments.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageShipments = filteredShipments.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Looked up from live data so an open dialog reflects saves and status changes.
+  const detailsShipment = initialShipments.find((s) => s.id === activeId) ?? null;
 
   function refresh() {
     router.refresh();
   }
 
-  function handleAdd() {
-    setEditingShipment(null);
-    setFormOpen(true);
+  function handleTypeChange(type: ShipmentType) {
+    setActiveType(type);
+    setPage(1);
   }
 
-  function handleEdit(shipment: Shipment) {
-    setEditingShipment(shipment);
+  function handleStatusFilterChange(status: StatusFilter) {
+    setStatusFilter(status);
+    setPage(1);
+  }
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+
+  function handleSort(key: SortKey) {
+    setPage(1);
+    setColumnSort((current) => {
+      if (current?.key === key) {
+        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: key === "company" ? "asc" : "desc" };
+    });
+  }
+
+  function handleTogglePriority() {
+    setPage(1);
+    setColumnSort((current) => (current ? null : DEFAULT_COLUMN_SORT));
+  }
+
+  function handleOpenDetails(shipment: Shipment) {
+    setActiveId(shipment.id);
+    setDetailsOpen(true);
+  }
+
+  function handleAdd() {
     setFormOpen(true);
   }
 
   function handleDelete(shipment: Shipment) {
+    setDetailsOpen(false);
     setDeleteTarget(shipment);
     setDeleteOpen(true);
   }
@@ -138,54 +232,113 @@ export function DashboardShell({ initialShipments }: { initialShipments: Shipmen
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="w-full min-w-0 space-y-4">
+      <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <TypeTabs
           value={activeType}
-          onChange={setActiveType}
+          onChange={handleTypeChange}
           counts={{
             INWARD: initialShipments.filter((s) => s.type === "INWARD").length,
             OUTWARD: initialShipments.filter((s) => s.type === "OUTWARD").length,
           }}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-4">
-          <div className="glass-card rounded-2xl p-3">
-            <FiltersBar
-              search={search}
-              onSearchChange={setSearch}
-              status={statusFilter}
-              onStatusChange={setStatusFilter}
-              onAdd={handleAdd}
-              onImport={() => setUploadOpen(true)}
-              onExport={handleExport}
-            />
-          </div>
-
-          <ShipmentCardGrid
-            shipments={filteredShipments}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onStatusChange={handleStatusChange}
-            onSaved={refresh}
-            pendingIds={pendingIds}
-            stackKey={`${activeType}-${statusFilter}`}
-          />
-        </div>
-
-        <KpiSidebar
-          kpis={kpis}
-          shipments={typeShipments}
-          className="order-first xl:sticky xl:top-24 xl:order-none xl:self-start"
+        <FiltersBar
+          search={search}
+          onSearchChange={handleSearchChange}
+          onAdd={handleAdd}
+          onImport={() => setUploadOpen(true)}
+          onExport={handleExport}
         />
       </div>
+
+      <div className="overflow-hidden rounded-xl border border-orange-200/70 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.08)] dark:border-slate-700/50 dark:bg-slate-900">
+        <div className="flex min-w-0 flex-col items-start gap-2 border-b p-2 md:flex-row md:items-center md:justify-between">
+          <StatusTabs
+            value={statusFilter}
+            onChange={handleStatusFilterChange}
+            counts={statusCounts}
+            warningCount={warningCount}
+            criticalCount={criticalCount}
+          />
+          {canSortByAge && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-pressed={columnSort === null}
+              onClick={handleTogglePriority}
+              className={cn(
+                "shrink-0 gap-1.5",
+                columnSort === null &&
+                  "border-tangerine-400 bg-tangerine-50 text-tangerine-800 hover:bg-tangerine-100 dark:bg-tangerine-950/50 dark:text-tangerine-300"
+              )}
+            >
+              <Flame className="size-3.5" /> Oldest in transit first
+            </Button>
+          )}
+        </div>
+
+        <ShipmentTable
+          shipments={pageShipments}
+          todayKey={todayKey}
+          canSortByAge={canSortByAge}
+          sort={effectiveSort}
+          onSort={handleSort}
+          activeId={activeId}
+          pendingIds={pendingIds}
+          onOpenDetails={handleOpenDetails}
+        />
+
+        {filteredShipments.length > 0 && (
+          <div className="flex items-center justify-between border-t px-3 py-1.5 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {pageStart + 1}–{pageStart + pageShipments.length} of {filteredShipments.length}
+            </span>
+            {pageCount > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Previous page"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="tabular-nums">
+                  Page {currentPage} of {pageCount}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Next page"
+                  disabled={currentPage === pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {detailsShipment && (
+        <ShipmentDetailsDialog
+          key={detailsShipment.id}
+          shipment={detailsShipment}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          onSaved={refresh}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+        />
+      )}
 
       <ShipmentFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
-        shipment={editingShipment}
+        shipment={null}
         defaultType={activeType}
         onSaved={refresh}
         history={initialShipments}

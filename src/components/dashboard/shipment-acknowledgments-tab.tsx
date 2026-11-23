@@ -50,7 +50,7 @@ function AcknowledgmentCard({
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-lg",
           confirmed
-            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+            ? "bg-status-delivered text-status-delivered-foreground"
             : "bg-muted text-muted-foreground"
         )}
       >
@@ -62,7 +62,7 @@ function AcknowledgmentCard({
         <div className="mt-3">
           {confirmed ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-status-delivered px-2.5 py-1 text-xs font-semibold text-status-delivered-foreground">
                 <CheckCircle2 className="size-3.5" />
                 Confirmed {formatDateTime(confirmedAt)}
               </span>

@@ -2,7 +2,14 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  // Date-only values are parsed as UTC, so format in UTC to avoid showing the previous day
+  // in time zones behind UTC.
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function formatCurrency(value: number | null | undefined): string {

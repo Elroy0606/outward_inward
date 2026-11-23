@@ -60,15 +60,13 @@ src/
     motion/
       motion-button.tsx       # `motion.create(Button)` — hover/tap micro-interaction wrapper
     dashboard/
-      dashboard-shell.tsx      # top-level client orchestrator: tab/filter state, KPIs,
-                             # wires the card grid + all sheets/dialogs together
+      dashboard-shell.tsx      # top-level client orchestrator: tab/filter/sort/page state,
+                             # wires the shipment table + all sheets/dialogs together
       type-tabs.tsx            # animated Inward/Outward switch (`layoutId="activeTab"`)
-      kpi-sidebar.tsx           # vertical KPI panel (right column at `xl`+): status
-                             # breakdown + recharts sparklines (14-day volume/charges)
-      filters-bar.tsx           # search, status filter, export/import/add actions
-      shipment-card-grid.tsx    # responsive card grid — stagger/exit + active-card state live here
-      shipment-card.tsx          # single shipment card; "More details" opens the details dialog
-      shipment-details-dialog.tsx # centered modal with a card's full details — tangerine header
+      status-tabs.tsx           # All/Pending/In Transit/Delivered/Cancelled tabs + aging counts
+      filters-bar.tsx           # search, export/import/add actions
+      shipment-table.tsx        # dense desktop table + compact mobile rows, transit age display
+      shipment-details-dialog.tsx # centered modal with a shipment's full details — tangerine header
                              # bar, sectioned key/value grids, and an in-place Edit toggle
                              # (react-hook-form + zod) that PATCHes via `updateShipment`
       status-popover.tsx          # two-step-confirm status changer (see below)
@@ -79,7 +77,8 @@ src/
       delete-shipment-dialog.tsx # delete confirmation (AlertDialog)
       user-menu.tsx               # header dropdown: signed-in email/role + sign-out
   lib/
-    types.ts                  # Shipment / ShipmentInsert / ShipmentUpdate / KPI types
+    types.ts                  # Shipment / ShipmentInsert / ShipmentUpdate types
+    transit.ts                # transit aging helper + TRANSIT_AGING_CONFIG thresholds
     constants.ts                # EXCEL_COLUMN_MAP, STATUS_CONFIG, TYPE_CONFIG
     validations.ts               # Zod schemas: form schema + server insert/update schema, plus
                              # shipmentToFormValues()/formValuesToShipmentInsert() converters
@@ -167,14 +166,14 @@ All theming is CSS-variable-based in `src/app/globals.css` (Tailwind v4 `@theme`
   edges instead of tiling edge-to-edge). Don't put a solid `bg-background` on page-level
   containers — that hides the atmosphere; let it show through and put opaque surfaces only on
   the actual cards/panels (see `.glass-card` below).
-- **`.glass-card`** — the standard elevated surface for *every* panel (header, KPI tiles, filter
-  toolbar, tab pill, shipment cards, empty/error states): `backdrop-blur-md`, semi-transparent
+- **`.glass-card`** — the standard elevated surface for *every* panel (header, tab pill, shipment
+  table, empty/error states): `backdrop-blur-md`, semi-transparent
   white/slate background, soft border, `shadow-xl`. Defined once in `globals.css`; apply it
   directly on a plain `<div>` rather than through shadcn's `<Card>` — `<Card>` ships its own
   opaque `bg-card`, and layering a second background utility on top of it is a merge-order
   footgun (`cn()`/tailwind-merge only reliably dedupes literal Tailwind utilities against each
-  other, not against a custom compound class like `.glass-card`). `kpi-sidebar.tsx` and
-  `shipment-card.tsx` are the reference implementations.
+  other, not against a custom compound class like `.glass-card`). `dashboard-shell.tsx` is
+  the reference implementation.
 - **`.glass-card-hover`** — pairs with `.glass-card` on hoverable surfaces: lifts (`-translate-y`),
   brightens the border to tangerine, and deepens the shadow with a tangerine tint.
 - **Status colors** — don't hardcode status colors in components. Use `STATUS_CONFIG` in
@@ -195,77 +194,40 @@ All theming is CSS-variable-based in `src/app/globals.css` (Tailwind v4 `@theme`
 
 ## Dashboard layout
 
-`dashboard-shell.tsx` renders `TypeTabs` full-width, then a 2-column CSS grid
-(`grid-cols-1 xl:grid-cols-[1fr_320px]`): the main column (filters + card grid) on the left,
-`KpiSidebar` on the right. Below `xl` the grid collapses to a single stacked column; the
-sidebar carries `order-first xl:order-none` so KPIs still appear *before* the filters/grid on
-mobile even though they're markup-last (needed for the right-column placement at `xl`). The
-sidebar is `xl:sticky xl:top-24` so it stays in view while the card grid scrolls.
+`dashboard-shell.tsx` renders the direction tabs and actions, then one solid white, bordered,
+soft-shadowed panel (deliberately not `.glass-card`, so it stands off the warm page tint) containing
+`StatusTabs`, the "Oldest in transit first" toggle, `ShipmentTable`, and 50-row pagination. Cost
+metrics and charts are intentionally not on this screen. `shipping_charges` remains on the record,
+form, details dialog, import, and export.
 
-`KpiSidebar` (`kpi-sidebar.tsx`) receives both the derived `ShipmentKpis` (for headline numbers)
-and the raw filtered `Shipment[]` for the active type (to build its own 14-day daily series —
-see `buildDailySeries`, local to that file). It renders three stacked `.glass-card` panels:
-status breakdown (plain divs — a proportional stacked bar + counts, not a chart), a recharts
-`AreaChart` sparkline of shipment volume, and a recharts `LineChart` sparkline of shipping
-charges, both over the last 14 calendar days (zero-filled so they always render). Chart
-stroke/fill use a literal `oklch(...)` constant mirroring `--color-tangerine-500` rather than
-`var(--color-tangerine-500)`, since SVG presentation attributes resolve CSS custom properties
-inconsistently across browsers.
+`ShipmentTable` is a real single-line `<table>` with a sticky header at every screen size, scrolling
+horizontally when narrow. It shows exactly seven columns: Date, OCA No, Name of Customer, Item
+(`particulars`, truncated with the full text on hover), Transporter Name, Tracking Number, and
+Transit / Status (day count for In Transit, a status badge otherwise).
+Status changes, edit, and delete live in the details
+dialog. Celsun brand colors are `#f18124` orange and `#494847` charcoal, with near-black text on
+orange because white fails contrast. Row click opens the single `ShipmentDetailsDialog` owned by `DashboardShell`. The last opened row keeps
+a tangerine outline through `activeId`.
 
-## Card Grid UI architecture
+## Transit aging and sorting
 
-Shipments render as a **responsive card grid**, not a table (`shipment-card-grid.tsx` +
-`shipment-card.tsx`) — 1 column on mobile, 2 on `sm`, 3 on `2xl`. (Breakpoints stay one step
-wider than they'd otherwise be because the grid shares the page with the `KpiSidebar` — see
-"Dashboard layout" below.) Each `ShipmentCard` is a self-contained `glass-card` with:
+`src/lib/transit.ts` owns the rules. Change thresholds, weekend days, or time zone in
+`TRANSIT_AGING_CONFIG`. Only `IN_TRANSIT` shipments get an age, counted from `in_transit_at` and
+falling back to `shipment_date` when null. The start day is day 0. A database trigger in
+`0007_shipments_in_transit_at.sql` stamps the column on every write path, so server actions must
+not set it.
 
-- Header: direction icon + company name (bold) + Cost Center/OCA or invoice reference,
-  `StatusPopover` and an edit/delete kebab menu top-right.
-- Particulars (2-line clamp) and a compact meta row (shipment date, transporter/tracking).
-- A "More details" button that opens `ShipmentDetailsDialog` (`shipment-details-dialog.tsx`) — a
-  centered modal with a tangerine gradient header bar and the shipment's fields grouped into
-  sectioned cards (Overview / Logistics / Contact / Address & Remarks). This used to be an
-  inline `AnimatePresence` accordion under the card, but that made one card's expansion push
-  the height of its entire grid row on desktop; a modal sidesteps that regardless of grid
-  position. The dialog is self-contained per card (its own `useState` in `ShipmentCard`) — it
-  doesn't need the shipment lifted anywhere.
-  - The dialog also has its own **Edit** toggle: clicking it swaps the same sectioned layout
-    into react-hook-form inputs (reusing `shipmentFormSchema`/`shipmentToFormValues`/
-    `formValuesToShipmentInsert` from `src/lib/validations.ts`) and shows Save/Cancel. Save
-    calls the `updateShipment` server action directly and calls the `onSaved` callback (threaded
-    down from `DashboardShell`'s `refresh`) on success; Cancel — and closing the dialog mid-edit
-    via the X button, overlay click, or Esc — discards the in-progress edit via `reset()`. This
-    is a second, lighter-weight edit path alongside the kebab menu's `ShipmentFormDialog`; both
-    ultimately call the same `updateShipment` action.
+The color scale lives in `TRANSIT_AGING_CONFIG.steps` and uses calendar days, matching the number
+in the badge. Business days appear only in the badge tooltip.
 
-**Active/recently-viewed highlight**: `ShipmentCardGrid` holds `activeId` (the single most
-recently opened card's id) and passes each card `isActive`/`onOpenDetails`. Opening a card's
-details dialog calls `onOpenDetails`, which sets `activeId` — `ShipmentCard` then renders a
-persistent `ring-2 ring-tangerine-500` while `isActive` is true, and the ring **stays** after the
-dialog closes (it isn't cleared on close) so the user can see which card they last opened. Only
-one card is active at a time. This state is intentionally local to `ShipmentCardGrid`, not lifted
-to `dashboard-shell.tsx` — nothing outside the grid needs it.
+- Day 0 to 1: light yellow.
+- Day 2: warm yellow.
+- Day 3: amber.
+- Day 4 to 6: orange (warning).
+- Day 7 and up: red, "Call courier" (critical).
 
-**Grid orchestration** (`shipment-card-grid.tsx`): the grid's outer `motion.div` carries
-`cardGridVariants` (`hidden` → `show` with `staggerChildren`) and is **keyed by `stackKey`**
-(passed in from `dashboard-shell.tsx` as `` `${activeType}-${statusFilter}` ``). Changing the
-active tab or the status filter changes that key, which remounts *that JSX subtree* (including
-every `ShipmentCard`) and replays the staggered entrance for the whole new batch — but it does
-**not** remount `ShipmentCardGrid` itself (React only remounts a component when its parent
-changes *its* key), so `activeId` survives a tab switch even though the card DOM underneath is
-torn down and rebuilt. Within a stable key (e.g. typing in the search box, or a single card being
-added/edited/deleted), an inner `AnimatePresence mode="popLayout"` handles individual
-enter/exit/layout-reorder without restarting the stagger.
-
-⚠️ That inner `AnimatePresence` must **not** be given `initial={false}` — since the outer grid
-remounts (and with it, a fresh `AnimatePresence` instance) on every `stackKey` change, `initial`
-must stay at its default (`true`) so each new instance's first batch of children actually plays
-the `hidden → show` entrance instead of snapping straight to their end state. This was a real bug
-caught during review; if the tab-switch stagger ever stops animating, check this first.
-
-`ShipmentCard`'s root `motion.div` uses `cardVariants` (exported from `shipment-card.tsx`) with
-`hidden`/`show`/`exit` keys and relies on variant propagation from the grid's stagger — it does
-not set its own `initial`/`animate` props.
+The default priority sort places In Transit first, oldest first, then other statuses newest first.
+Clicking a sortable column replaces it until the priority toggle is turned back on.
 
 ## Status popover (two-step confirm)
 
@@ -297,19 +259,9 @@ this component's shape rather than reaching for an effect.
 - Buttons: wrap with `MotionButton` (`src/components/motion/motion-button.tsx`,
   `motion.create(Button)`) and apply `whileHover={{ scale: 1.02 }}` / `whileTap={{ scale: 0.98 }}`
   — only on primary/CTA buttons, not every button.
-- Cards: hover lift via `whileHover={{ y: -4 }}` + `.glass-card-hover`'s border/shadow
-  transition; entrance via the grid's `cardGridVariants`/`cardVariants` stagger (see above); a
-  persistent `ring-2 ring-tangerine-500` (not animated) while the card is the grid's `activeId`.
-- No inline expandable accordions remain — card details open in `ShipmentDetailsDialog` instead
-  (see "Card Grid UI architecture" above). If you need an "expand in place" pattern elsewhere,
-  the old approach was `AnimatePresence` + `motion.div` animating `height`/`opacity`, wrapped in
-  `overflow-hidden` — still fine for cases that aren't in a multi-column grid.
 - Status popover micro-interactions: per-option `whileHover`/`whileTap` scale, `AnimatePresence
   mode="wait"` swapping the trailing icon/label between idle → "Click again" → spinner → check
   pop (see `status-popover.tsx`).
-- When adding a new list-like UI that needs "reveal on filter change" behavior, follow the
-  `stackKey` pattern above rather than trying to re-trigger `staggerChildren` on an
-  already-mounted parent (it won't re-run without a remount).
 
 ## Data flow / conventions
 

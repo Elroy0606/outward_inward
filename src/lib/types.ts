@@ -26,6 +26,8 @@ export interface Shipment {
   transporter_name: string | null;
   tracking_number: string | null;
   delivery_date: string | null;
+  /** Stamped by a database trigger (see 0007 migration). Null on older rows. */
+  in_transit_at: string | null;
   confirmed_with: string | null;
   shipping_charges: number | null;
   weight_kg: number | null;
@@ -54,6 +56,7 @@ export type ShipmentInsert = Omit<
   | "id"
   | "created_at"
   | "updated_at"
+  | "in_transit_at"
   | "carrier_delivery_confirmed"
   | "carrier_delivery_confirmed_at"
   | "client_receipt_confirmed"
@@ -72,15 +75,4 @@ export interface ShipmentDeletionLog {
   deleted_by_email: string;
   deletion_reason: string;
   deleted_at: string;
-}
-
-export interface ShipmentKpis {
-  total: number;
-  pending: number;
-  inTransit: number;
-  delivered: number;
-  cancelled: number;
-  inwardCount: number;
-  outwardCount: number;
-  totalShippingCharges: number;
 }

@@ -16,7 +16,7 @@ export function UserMenu({ email, role }: { email: string; role: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+        <Button variant="ghost" size="sm" className="gap-1.5 font-semibold text-zinc-950 hover:bg-black/15 hover:text-zinc-950 aria-expanded:bg-black/15 aria-expanded:text-zinc-950 dark:text-zinc-950 dark:hover:bg-black/15 dark:hover:text-zinc-950">
           <User className="size-4" />
           <span className="hidden max-w-[160px] truncate sm:inline">{email}</span>
         </Button>

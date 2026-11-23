@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { StatusBadge } from "@/components/dashboard/status-badge";
+import { StatusPopover } from "@/components/dashboard/status-popover";
 import { ShipmentAcknowledgmentsTab } from "@/components/dashboard/shipment-acknowledgments-tab";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,13 +40,14 @@ import {
   Truck,
   Hash,
   Pencil,
+  Trash2,
   X,
   Loader2,
   MapPin,
   Users,
   ClipboardList,
 } from "lucide-react";
-import type { Shipment } from "@/lib/types";
+import type { Shipment, ShipmentStatus } from "@/lib/types";
 
 /** Read-only key/value pair used in view mode. */
 function DetailField({
@@ -127,12 +128,16 @@ export function ShipmentDetailsDialog({
   open,
   onOpenChange,
   onSaved,
+  onStatusChange,
+  onDelete,
 }: {
   shipment: Shipment;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called after a successful edit save, so the parent can refresh server data. */
   onSaved?: () => void;
+  onStatusChange: (shipment: Shipment, status: ShipmentStatus) => Promise<boolean>;
+  onDelete: (shipment: Shipment) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "acknowledgments">("details");
@@ -204,22 +209,18 @@ export function ShipmentDetailsDialog({
         onClick={(e) => e.stopPropagation()}
         className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
       >
-        {/* Tangerine brand header bar */}
-        <div className="relative shrink-0 overflow-hidden bg-gradient-to-r from-tangerine-600 to-tangerine-500 px-6 py-5 text-white sm:px-8 sm:py-6">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_100%_at_100%_0%,rgba(255,255,255,0.18),transparent)]"
-          />
+        {/* Celsun orange header bar */}
+        <div className="relative shrink-0 overflow-hidden bg-primary px-6 py-5 text-primary-foreground sm:px-8 sm:py-6">
           <div className="relative flex items-start gap-3 pr-10">
-            <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/30">
+            <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-foreground text-primary">
               {isInward ? <Package className="size-5" /> : <Truck className="size-5" />}
             </div>
             <div className="min-w-0">
-              <DialogTitle className="truncate text-xl font-semibold text-white">
+              <DialogTitle className="truncate text-xl font-bold text-primary-foreground">
                 {shipment.company_name}
               </DialogTitle>
               {referenceNumber && (
-                <p className="mt-1 flex items-center gap-1 truncate text-sm text-white/80">
+                <p className="mt-1 flex items-center gap-1 truncate text-sm font-medium text-primary-foreground">
                   <Hash className="size-3.5" />
                   {referenceNumber}
                 </p>
@@ -232,7 +233,7 @@ export function ShipmentDetailsDialog({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/15 hover:text-white sm:top-5 sm:right-6"
+            className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-lg text-primary-foreground transition-colors hover:bg-black/15 sm:top-5 sm:right-6"
           >
             <X className="size-4" />
             <span className="sr-only">Close</span>
@@ -242,25 +243,40 @@ export function ShipmentDetailsDialog({
         {/* Status / date / edit-toggle sub-header */}
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background/60 px-6 py-3 sm:px-8">
           <div className="flex items-center gap-3">
-            <StatusBadge status={shipment.status} />
+            <StatusPopover
+              status={shipment.status}
+              onChange={(status) => onStatusChange(shipment, status)}
+            />
             <span className="text-sm text-muted-foreground">
               {formatDate(shipment.shipment_date)}
             </span>
           </div>
           {!isEditing && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => {
-                setActiveTab("details");
-                setIsEditing(true);
-              }}
-            >
-              <Pencil className="size-3.5" />
-              Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  setActiveTab("details");
+                  setIsEditing(true);
+                }}
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => onDelete(shipment)}
+              >
+                <Trash2 className="size-3.5" />
+                Delete
+              </Button>
+            </div>
           )}
         </div>
 
